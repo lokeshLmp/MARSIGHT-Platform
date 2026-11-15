@@ -169,6 +169,13 @@ class AssistantApiTests(unittest.TestCase):
         self.assertEqual(response.status_code, 429)
         self.assertNotIn(SECRET_SENTINEL, response.text)
 
+    def test_provider_timeout_maps_to_gateway_timeout(self):
+        FakeAsyncClient.failure = self.fake_sdk.APITimeoutError(SECRET_SENTINEL)
+        with patch.object(assistant, "_collect_measured_context", return_value=VALID_MEASURED):
+            response = self.post(self.request_body())
+        self.assertEqual(response.status_code, 504)
+        self.assertNotIn(SECRET_SENTINEL, response.text)
+
     def test_workspace_usage_limit_maps_to_payment_required_without_details(self):
         FakeAsyncClient.failure = self.fake_sdk.APIStatusError(402, f"billing details {SECRET_SENTINEL}")
         with patch.object(assistant, "_collect_measured_context", return_value=VALID_MEASURED):
