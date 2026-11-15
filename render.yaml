@@ -1,0 +1,22 @@
+services:
+  - type: web
+    name: marsight-platform-api
+    runtime: python
+    plan: free
+    buildCommand: pip install -r backend/requirements.txt
+    startCommand: python -m uvicorn backend.app.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /health
+    envVars:
+      - key: MARSIGHT_ALLOWED_ORIGINS
+        value: https://marsight-platform-web.onrender.com
+      - key: MARSIGHT_CLAUDE_ENABLED
+        value: "false"
+
+  - type: web
+    name: marsight-platform-web
+    runtime: static
+    buildCommand: cd frontend && npm ci && npm run build
+    staticPublishPath: frontend/dist
+    envVars:
+      - key: VITE_MARSIGHT_API_URL
+        value: https://marsight-platform-api.onrender.com
