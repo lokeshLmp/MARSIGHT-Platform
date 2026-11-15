@@ -22,7 +22,7 @@ The checked-in `frontend/.env.example` is for local development; do not use its 
 
 ## Backend
 
-The Render web service installs `backend/requirements.txt` and starts Uvicorn on Render's assigned port. The process binds to `0.0.0.0` and exposes `/health` as its health check.
+The Render web service installs `backend/requirements-ai.txt` (core dependencies plus the optional assistant SDK) and starts Uvicorn on Render's assigned port. Core-only deployments can install `backend/requirements.txt`. The process binds to `0.0.0.0` and exposes `/health` as its health check.
 
 ```sh
 python -m uvicorn backend.app.main:app --host 0.0.0.0 --port 8000

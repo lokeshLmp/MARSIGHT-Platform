@@ -1,0 +1,3 @@
+# Install the core API and the optional Claude research-assistant SDK.
+-r requirements.txt
+anthropic>=2.8,<3.0

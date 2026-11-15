@@ -58,7 +58,7 @@ $env:MARSIGHT_DTM_PATH = 'D:\data\DTEPD_076532_0920_076203_0920_A01.IMG'
 .venv\Scripts\python.exe -m uvicorn backend.app.main:app --reload --port 8000
 ```
 
-The frontend and API run as separate services. No `.env`, API key, or raster is bundled. The Anthropic SDK is used only by the optional backend assistant; core application routes do not need an API key or provider call. If the DTM is not configured or cannot be opened, processing and assistant endpoints return an explicit unavailable response.
+The frontend and API run as separate services. No `.env`, API key, or raster is bundled. Install `backend/requirements.txt` for the core API. Install `backend/requirements-ai.txt` only when enabling the optional Claude assistant; core application routes do not need the SDK, an API key, or a provider call. If the DTM is not configured or cannot be opened, processing and assistant endpoints return an explicit unavailable response.
 
 ### Optional Claude configuration
 
@@ -72,7 +72,7 @@ MARSIGHT_CLAUDE_ENABLED=true
 
 The chosen default model is currently listed as active by Anthropic and priced at $0.10 per million input tokens and $0.50 per million output tokens for prompts up to 100,000 tokens. MARSIGHT sends compact summaries only, limits responses to 600 tokens, and limits each client to three requests per minute. The $5 monthly workspace limit is controlled in the Anthropic Console; it is not an application-enforced budget. Review [model status](https://docs.anthropic.com/en/docs/about-claude/model-deprecations) and [current pricing](https://docs.anthropic.com/en/docs/about-claude/pricing) before changing the model.
 
-The endpoint is `POST /api/assistant/terrain-summary`. It requires the real registered raster and returns measured inputs separately from Claude's interpretation. Missing configuration or raster data does not affect the core MARSIGHT APIs. The official Anthropic Python SDK is installed from `backend/requirements.txt`; this workspace currently has no network access to PyPI, so local tests use a mocked SDK client.
+The endpoint is `POST /api/assistant/terrain-summary`. It requires the real registered raster and returns measured inputs separately from Claude's interpretation. Missing configuration or raster data does not affect the core MARSIGHT APIs. The official Anthropic Python SDK is installed from `backend/requirements-ai.txt`; this workspace currently has no network access to PyPI, so local tests use a mocked SDK client.
 
 ### Processing routes
 
