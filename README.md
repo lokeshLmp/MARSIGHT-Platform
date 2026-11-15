@@ -42,44 +42,79 @@ The underlying objective is to bridge the gap between complex planetary datasets
 MARSIGHT follows a decoupled client-server architecture. The frontend handles visualization and user interaction, while the backend manages dataset discovery, raster validation, scientific processing, and optional AI integration.
 
 ```mermaid
-flowchart TD
-    USER["User"] --> FRONTEND
 
-    subgraph CLIENT["Frontend"]
-        FRONTEND["React + TypeScript + Vite"]
-        GLOBE["CesiumJS Visualization"]
-        FRONTEND --> GLOBE
+flowchart LR
+
+    USER(["USER"])
+
+    subgraph FRONTEND["01 · PRESENTATION"]
+        direction TB
+        REACT["React + TypeScript + Vite"]
+        CESIUM["CesiumJS<br/>3D Mars Visualization"]
+        REACT --> CESIUM
     end
 
-    FRONTEND <-->|"REST API / HTTPS"| API
-
-    subgraph SERVER["Backend"]
-        API["FastAPI"]
-        VALIDATION["Pydantic Validation"]
-        REGISTRY["Dataset Registry"]
-        PROCESSING["Raster Processing"]
-        ANALYSIS["Terrain Analysis"]
-        API --> VALIDATION
-        VALIDATION --> REGISTRY
-        REGISTRY --> PROCESSING
-        PROCESSING --> ANALYSIS
+    subgraph BACKEND["02 · APPLICATION BACKEND"]
+        direction TB
+        API["FastAPI<br/>REST API"]
+        VALIDATE["Pydantic<br/>Request Validation"]
+        ROUTER["API Route Handlers"]
+        API --> VALIDATE --> ROUTER
     end
 
-    subgraph DATA["Planetary Data"]
-        STAC["USGS Astrogeology STAC"]
-        HIRISE["HiRISE DTM"]
-        CTX["CTX DTM"]
-        RASTER["GeoTIFF"]
-        STAC --> HIRISE
-        STAC --> CTX
-        HIRISE --> RASTER
-        CTX --> RASTER
+    subgraph DISCOVERY["03 · DATA DISCOVERY"]
+        direction TB
+        STAC["USGS Astrogeology<br/>STAC Catalog"]
+        COLLECTIONS["Mars DTM Collections"]
+        METADATA["Dataset Metadata<br/>and Asset References"]
+        STAC --> COLLECTIONS --> METADATA
+        COLLECTIONS --- HIRISE["HiRISE"]
+        COLLECTIONS --- CTX["CTX"]
     end
 
-    STAC <-->|"Dataset discovery"| API
-    REGISTRY --> RASTER
+    subgraph PROCESSING["04 · SCIENTIFIC PROCESSING"]
+        direction TB
+        REGISTRY["Approved Dataset Registry"]
+        CHECK["Raster Validation"]
+        RASTER["Rasterio + GDAL"]
+        NUMPY["NumPy<br/>Numerical Processing"]
+        REGISTRY --> CHECK --> RASTER --> NUMPY
+    end
 
-    ANALYSIS -.-> AI["Optional Claude Assistant"]
+    subgraph ANALYSIS["05 · TERRAIN ANALYSIS"]
+        direction TB
+        STATS["Elevation Statistics"]
+        WINDOW["Terrain Window"]
+        PROFILE["Elevation Profiles"]
+        DERIVATIVES["Slope · Aspect · Hillshade"]
+    end
+
+    subgraph INTELLIGENCE["06 · AI INTERPRETATION"]
+        direction TB
+        CONTEXT["Measured Terrain Context"]
+        CLAUDE["Optional Claude Assistant"]
+        RESULT["Research-oriented Explanation"]
+        CONTEXT --> CLAUDE --> RESULT
+    end
+
+    USER --> REACT
+    CESIUM <-->|"User Interaction"| REACT
+    REACT <-->|"HTTPS · REST API"| API
+
+    ROUTER <-->|"Discovery Requests"| STAC
+    METADATA -.->|"Dataset References"| ROUTER
+
+    ROUTER --> REGISTRY
+    NUMPY --> STATS
+    NUMPY --> WINDOW
+    NUMPY --> PROFILE
+    NUMPY --> DERIVATIVES
+
+    STATS --> CONTEXT
+    WINDOW --> CONTEXT
+    PROFILE --> CONTEXT
+    RESULT -.->|"Optional AI Response"| API
+
 ```
 
 ## Technology Stack
