@@ -1,4 +1,4 @@
-> **Archived plan:** this document records earlier development gates. The backend and frontend integration now exist in this checkout. Its older "planning only" and "current boundary" statements are historical. See [README.md](../README.md) and [deployment.md](deployment.md) for the current implementation and remaining deployment requirements.
+> **Archived plan:** this document records earlier development gates. The backend, frontend, and opt-in Claude assistant now exist in this checkout. Its older "planning only" and "current boundary" statements are historical. Provider calls remain disabled by default, require a backend secret and flag, and have only been tested with mocks. See [README.md](../README.md) and [deployment.md](deployment.md) for current configuration and verification limits.
 # FastAPI backend foundation plan
 
 ## Status

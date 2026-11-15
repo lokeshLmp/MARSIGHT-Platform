@@ -9,7 +9,7 @@ MARSIGHT is a modular planetary science platform with a React/Vite frontend and 
 - **EXPERIMENTAL — Terrain Explorer:** preserves supplied reference metadata separately from live API results. The terrain panel and route sketch remain illustrative and are not pixel-derived.
 - **IMPLEMENTED — Dataset discovery and header metadata:** USGS STAC `/datasets` and `/dtm/{id}/metadata` routes preserve the existing backend behavior. The Data Provenance source register remains separate from live catalogue discovery.
 - **MOCK — mission route sketch:** local waypoint drawing only. It does not calculate terrain cost, route distance, or safety.
-- **PLANNED — mission assistant and operational analysis:** no assistant, validated routing, or safety assessment is connected.
+- **OPTIONAL — Claude terrain research assistant:** on explicit user request, the backend summarizes measured statistics, a bounded real-raster window, and an optional profile. It is disabled unless both `MARSIGHT_CLAUDE_ENABLED=true` and the backend-only `ANTHROPIC_API_KEY` are configured. It does not analyze the illustrative surface and is not a route-safety assessment. Provider responses are tested with mocks; a real Claude call has not been made.
 
 ## HiRISE reference and scientific limits
 
@@ -58,7 +58,21 @@ $env:MARSIGHT_DTM_PATH = 'D:\data\DTEPD_076532_0920_076203_0920_A01.IMG'
 .venv\Scripts\python.exe -m uvicorn backend.app.main:app --reload --port 8000
 ```
 
-The frontend and API run as separate services. No `.env`, API key, raster, AI service, or paid infrastructure is bundled. If the DTM is not configured or cannot be opened, processing endpoints return an explicit unavailable response.
+The frontend and API run as separate services. No `.env`, API key, or raster is bundled. The Anthropic SDK is used only by the optional backend assistant; core application routes do not need an API key or provider call. If the DTM is not configured or cannot be opened, processing and assistant endpoints return an explicit unavailable response.
+
+### Optional Claude configuration
+
+Set these variables only on the backend. Never define `ANTHROPIC_API_KEY` as a Vite variable or in the static frontend service.
+
+```text
+ANTHROPIC_API_KEY=<secret stored by the backend host>
+ANTHROPIC_MODEL=claude-haiku-5-5
+MARSIGHT_CLAUDE_ENABLED=true
+```
+
+The chosen default model is currently listed as active by Anthropic and priced at $0.10 per million input tokens and $0.50 per million output tokens for prompts up to 100,000 tokens. MARSIGHT sends compact summaries only, limits responses to 600 tokens, and limits each client to three requests per minute. The $5 monthly workspace limit is controlled in the Anthropic Console; it is not an application-enforced budget. Review [model status](https://docs.anthropic.com/en/docs/about-claude/model-deprecations) and [current pricing](https://docs.anthropic.com/en/docs/about-claude/pricing) before changing the model.
+
+The endpoint is `POST /api/assistant/terrain-summary`. It requires the real registered raster and returns measured inputs separately from Claude's interpretation. Missing configuration or raster data does not affect the core MARSIGHT APIs. The official Anthropic Python SDK is installed from `backend/requirements.txt`; this workspace currently has no network access to PyPI, so local tests use a mocked SDK client.
 
 ### Processing routes
 

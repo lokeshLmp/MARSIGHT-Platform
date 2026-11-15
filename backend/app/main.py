@@ -1,7 +1,4 @@
-"""Platform FastAPI application combining service health, STAC metadata and terrain APIs.
-
-No AI provider SDK or paid service is used. Raster paths are configured server-side.
-"""
+"""Platform FastAPI application combining STAC, terrain, and optional AI APIs."""
 
 from contextlib import asynccontextmanager
 
@@ -14,11 +11,13 @@ from .config import get_settings
 try:  # repository-root invocation: uvicorn backend.app.main:app
     from backend.science_api.routers import close_stac_client, router as research_router
     from backend.science_api.terrain_routes import router as terrain_router
+    from backend.app.assistant import router as assistant_router
 except ModuleNotFoundError as exc:  # legacy invocation from backend/: uvicorn app.main:app
     if exc.name not in {"backend", "backend.science_api"}:
         raise
     from science_api.routers import close_stac_client, router as research_router
     from science_api.terrain_routes import router as terrain_router
+    from app.assistant import router as assistant_router
 
 
 settings = get_settings()
@@ -34,8 +33,8 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.allowed_origins,
     allow_credentials=False,
-    allow_methods=["GET"],
-    allow_headers=[],
+    allow_methods=["GET", "POST"],
+    allow_headers=["Content-Type"],
 )
 
 
@@ -43,6 +42,7 @@ class AiStatus(BaseModel):
     enabled: bool
     provider_requests_enabled: bool
     project_cap_usd: int
+    model: str
 
 
 class HealthResponse(BaseModel):
@@ -58,11 +58,12 @@ def health() -> HealthResponse:
     return HealthResponse(
         status="ok",
         service="marsight-api",
-        version=settings.app_version,
+        version=get_settings().app_version,
         ai=AiStatus(
-            enabled=False,
-            provider_requests_enabled=False,
-            project_cap_usd=settings.claude_project_cap_usd,
+            enabled=get_settings().claude_enabled,
+            provider_requests_enabled=get_settings().claude_enabled,
+            project_cap_usd=get_settings().claude_project_cap_usd,
+            model=get_settings().anthropic_model,
         ),
     )
 
@@ -73,3 +74,4 @@ compatible_routes = APIRouter()
 compatible_routes.routes.extend(route for route in research_router.routes if getattr(route, "path", None) != "/health")
 app.include_router(compatible_routes)
 app.include_router(terrain_router)
+app.include_router(assistant_router)

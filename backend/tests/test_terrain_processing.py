@@ -46,6 +46,22 @@ class RasterFixture(unittest.TestCase):
         self.assertAlmostEqual(result["maximum"], 12)
         self.assertAlmostEqual(result["mean"], float(self.data[self.data != NODATA].mean()), places=6)
 
+    def test_assistant_context_uses_computed_raster_summaries_without_pixel_arrays(self):
+        from backend.app.assistant import TerrainSummaryRequest, _collect_measured_context
+
+        request = TerrainSummaryRequest(
+            item_id="synthetic-test", col_off=1, row_off=1, width=3, height=3,
+            profile_start_col=0, profile_start_row=0, profile_end_col=6, profile_end_row=6,
+        )
+        with patch("backend.app.assistant.get_dataset", return_value=self.dataset), \
+             patch("backend.app.assistant.validate_raster"):
+            measured = _collect_measured_context(request)
+        self.assertEqual(measured["statistics"]["valid_pixels"], 48)
+        self.assertEqual(measured["window"]["elevation"]["valid_cells"], 9)
+        self.assertEqual(measured["profile"]["sample_count"], 7)
+        self.assertIn("NoData", measured["provenance"]["nodata_treatment"])
+        self.assertEqual(set(measured["window"]["elevation"]), {"valid_cells", "minimum", "maximum", "mean"})
+
     def test_horn_slope_aspect_and_hillshade(self):
         result = analyze_window(self.dataset, 1, 1, 3, 3, 270, 45)
         self.assertAlmostEqual(result["slope_degrees"][1][1], 45, places=5)

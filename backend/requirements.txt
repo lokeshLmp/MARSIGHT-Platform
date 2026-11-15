@@ -6,3 +6,5 @@ httpx2>=2.0,<3.0
 httpx>=0.27,<1.0
 numpy>=2.0,<3.0
 rasterio>=1.4,<2.0
+# Optional feature: installed for the backend research-assistant endpoint; core routes need no key.
+anthropic>=2.8,<3.0

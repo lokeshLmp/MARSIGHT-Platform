@@ -2,6 +2,7 @@ import { useEffect, useState, type CSSProperties, type FormEvent, type KeyboardE
 import './terrain-explorer.css'
 import { hiriseDtmReference } from './hiriseDtmReference'
 import { getElevationProfile, getTerrainStatistics, type ElevationProfile, type TerrainStatistics } from './terrainApi'
+import { requestTerrainExplanation, type TerrainAssistantResponse } from './terrainAssistantApi'
 
 type Area = { id: string; name: string; subtitle: string; center: string; accent: string }
 type Point = { x: number; y: number }
@@ -20,6 +21,9 @@ export function TerrainExplorer({ onBack }: { onBack: () => void }) {
   const [profileError, setProfileError] = useState<string | null>(null)
   const [profileLoading, setProfileLoading] = useState(false)
   const [profilePixels, setProfilePixels] = useState({ startCol: '0', startRow: '0', endCol: '100', endRow: '100' })
+  const [assistantResult, setAssistantResult] = useState<TerrainAssistantResponse | null>(null)
+  const [assistantError, setAssistantError] = useState<string | null>(null)
+  const [assistantLoading, setAssistantLoading] = useState(false)
   const [areaId, setAreaId] = useState(areas[0].id)
   const [layer, setLayer] = useState<'relief' | 'contours'>('relief')
   const [waypoints, setWaypoints] = useState<Point[]>([])
@@ -50,6 +54,23 @@ export function TerrainExplorer({ onBack }: { onBack: () => void }) {
       setProfileError(error instanceof Error ? error.message : 'The profile request failed.')
     } finally {
       setProfileLoading(false)
+    }
+  }
+
+  async function explainTerrain() {
+    setAssistantLoading(true)
+    setAssistantError(null)
+    setAssistantResult(null)
+    try {
+      const coordinates = profile ? Object.values(profilePixels).map(Number) : null
+      setAssistantResult(await requestTerrainExplanation({
+        item_id: reference.product.productId,
+        profile: coordinates ? { startCol: coordinates[0], startRow: coordinates[1], endCol: coordinates[2], endRow: coordinates[3] } : undefined,
+      }))
+    } catch (error) {
+      setAssistantError(error instanceof Error ? error.message : 'The terrain explanation could not be generated.')
+    } finally {
+      setAssistantLoading(false)
     }
   }
 
@@ -110,6 +131,24 @@ export function TerrainExplorer({ onBack }: { onBack: () => void }) {
         <form onSubmit={requestProfile} className="profile-form">{(['startCol', 'startRow', 'endCol', 'endRow'] as const).map((key) => <label key={key}>{key.replace(/[A-Z]/g, (letter) => ` ${letter.toLowerCase()}`)}<input type="number" min="0" step="1" value={profilePixels[key]} onChange={(event) => setProfilePixels((current) => ({ ...current, [key]: event.target.value }))}/></label>)}<button type="submit" disabled={profileLoading}>{profileLoading ? 'Sampling…' : 'Load live profile'}</button></form>
         {profileError && <p role="status">{profileError}</p>}{profile && <><p className="live-profile-meta">LIVE · {profile.samples.length} samples · distances are raw CRS units, not asserted metres · {new Date(profile.provenance.processed_at).toLocaleString()}</p><div className="live-profile-values">{profile.samples.map((sample, index) => <span key={`${sample.column}-${sample.row}-${index}`}>{sample.distance_crs_units.toFixed(1)} CRS units: {sample.elevation === null ? 'NoData' : `${sample.elevation.toFixed(2)} m`}</span>)}</div></>}
       </div>
+    </section>
+
+    <section className="terrain-assistant" aria-labelledby="terrain-assistant-title" aria-live="polite">
+      <div className="control-head"><div><span className="eyebrow warm"><span className="eyebrow-line"/>OPTIONAL CLAUDE RESEARCH ASSISTANT</span><h2 id="terrain-assistant-title">Read the measured terrain</h2></div><span className="assistant-pill">USER REQUESTED · BACKEND ONLY</span></div>
+      <p className="assistant-intro">Claude can explain the registered HiRISE raster’s measured statistics and a small elevation, slope, aspect and hillshade window. The illustrative surface and supplied reference figures are never sent as live measurements.</p>
+      <button type="button" className="assistant-button" onClick={explainTerrain} disabled={assistantLoading}>{assistantLoading ? 'Preparing scientific context…' : 'Explain this terrain'}</button>
+      <p className="assistant-verification">AI-generated interpretations require scientific verification. This is not a route-safety assessment. A real approved raster and backend Claude configuration are required.</p>
+      {assistantError && <p className="assistant-error" role="status">{assistantError}</p>}
+      {assistantResult && <div className="assistant-result">
+        <section aria-labelledby="assistant-measured-title"><h3 id="assistant-measured-title">Measured inputs · {assistantResult.measured.product.instrument}</h3>
+          <p>{assistantResult.item_id} · {assistantResult.measured.product.region} · {assistantResult.measured.product.elevation_units} · {assistantResult.measured.product.vertical_datum}</p>
+          <div className="assistant-metrics"><span>Full raster mean <strong>{assistantResult.measured.statistics.mean.toFixed(2)} {assistantResult.measured.product.elevation_units}</strong></span><span>Window slope range <strong>{assistantResult.measured.window.slope_degrees.minimum?.toFixed(2) ?? 'NoData'}–{assistantResult.measured.window.slope_degrees.maximum?.toFixed(2) ?? 'NoData'}°</strong></span><span>Aspect range <strong>{assistantResult.measured.window.aspect_degrees_clockwise_from_north.minimum?.toFixed(2) ?? 'NoData'}–{assistantResult.measured.window.aspect_degrees_clockwise_from_north.maximum?.toFixed(2) ?? 'NoData'}°</strong></span><span>Hillshade range <strong>{assistantResult.measured.window.hillshade_0_255.minimum?.toFixed(0) ?? 'NoData'}–{assistantResult.measured.window.hillshade_0_255.maximum?.toFixed(0) ?? 'NoData'} / 255</strong></span><span>NoData pixels <strong>{assistantResult.measured.statistics.nodata_pixels.toLocaleString()}</strong></span><span>Analysis window <strong>{assistantResult.measured.window.pixel_bounds.width}×{assistantResult.measured.window.pixel_bounds.height} · col {assistantResult.measured.window.pixel_bounds.col_off}, row {assistantResult.measured.window.pixel_bounds.row_off}</strong></span></div>
+          {assistantResult.measured.profile && <p>Profile · {assistantResult.measured.profile.valid_sample_count}/{assistantResult.measured.profile.sample_count} valid samples · elevation range {assistantResult.measured.profile.elevation_range?.map((value) => `${value.toFixed(2)} ${assistantResult.measured.product.elevation_units}`).join(' to ') ?? 'NoData'} · distances are raw raster CRS units, not asserted metres.</p>}
+        </section>
+        <section aria-labelledby="assistant-summary-title"><h3 id="assistant-summary-title">AI interpretation · {assistantResult.model}</h3><p>{assistantResult.interpretation.summary}</p><h4>Observations</h4><ul>{assistantResult.interpretation.observations.map((item, index) => <li key={`observation-${index}`}>{item}</li>)}</ul><h4>Limitations</h4><ul>{assistantResult.interpretation.limitations.map((item, index) => <li key={`limitation-${index}`}>{item}</li>)}</ul>
+          <p className="assistant-verification">{assistantResult.verification_notice}</p><p className="assistant-sources">Sources: {assistantResult.measured.provenance.sources.join(' · ')}</p>
+        </section>
+      </div>}
     </section>
 
     <div className="mock-section-label"><span className="mock-label">MOCK</span><strong>Illustrative route-sketch prototype</strong><span>This panel is not derived from the HiRISE DTM.</span></div>

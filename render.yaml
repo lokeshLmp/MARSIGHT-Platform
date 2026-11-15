@@ -7,10 +7,16 @@ services:
     startCommand: python -m uvicorn backend.app.main:app --host 0.0.0.0 --port $PORT
     healthCheckPath: /health
     envVars:
+      - key: ANTHROPIC_API_KEY
+        sync: false
       - key: MARSIGHT_ALLOWED_ORIGINS
         value: https://marsight-platform-web.onrender.com
       - key: MARSIGHT_CLAUDE_ENABLED
         value: "false"
+      - key: MARSIGHT_CLAUDE_PROJECT_CAP_USD
+        value: "5"
+      - key: ANTHROPIC_MODEL
+        value: claude-haiku-5-5
 
   - type: web
     name: marsight-platform-web
