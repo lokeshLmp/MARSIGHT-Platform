@@ -1,423 +1,332 @@
-# MARSIGHT Platform
+# MARSIGHT
+### Interactive Mars Terrain Exploration Platform
 
-**A modular planetary science platform for discovering, exploring, and analysing Mars terrain data.**
+**Explore Mars. Analyze its terrain. Understand its data.**
 
-MARSIGHT combines an interactive Mars visualization experience with a scientific data backend. It integrates USGS Astrogeology's SpatioTemporal Asset Catalog (STAC) for Mars Digital Terrain Model (DTM) discovery and provides Rasterio/NumPy-based processing for explicitly registered elevation rasters.
+MARSIGHT is a planetary exploration platform that brings together interactive 3D visualization, Mars terrain dataset discovery, geospatial processing, and AI-assisted scientific interpretation.
 
-The platform is built with React, TypeScript, Vite, CesiumJS, Python, and FastAPI. Its architecture separates interactive visualization, scientific data discovery, raster processing, and optional AI-assisted interpretation.
-
-**Project links**
-- Frontend: https://marsight-platform-web.onrender.com
-- Backend API: https://marsight-platform-api.onrender.com
-- GitHub repository: https://github.com/lokeshLmp/MARSIGHT-Platform
+It aims to make planetary elevation data more accessible through an integrated environment for discovering, exploring, and analyzing Mars Digital Terrain Models (DTMs).
 
 ---
 
-## 1. Platform capabilities and implementation status
+## Overview
 
-| Component | Status | Description |
-|---|---|---|
-| Mars overview globe | Experimental | CesiumJS displays the Viking Visual Imaging Subsystem (VIS) Global Color Mosaic through Mars Trek. This is global color imagery, not a live DTM or shaded-relief visualization. |
-| USGS dataset discovery | Implemented | Searches the configured USGS STAC collections for HiRISE and CTX DTM products. |
-| Raster metadata | Implemented | Retrieves and exposes metadata for discovered DTM products. |
-| HiRISE raster processing | Implemented, configuration-dependent | Supports NoData-aware statistics, elevation windows, slope, aspect, analytical hillshade, and elevation profiles for the registered HiRISE product. |
-| CTX raster access | Locally tested; integration pending | A real USGS CTX GeoTIFF has been opened and sampled successfully with Rasterio. It has not yet been added to the server-side processing registry. |
-| Terrain Explorer | Experimental | Displays terrain-related information while distinguishing supplied reference metadata from live API results. |
-| Mission route sketch | Mock / illustrative | Allows local waypoint drawing. It does not calculate terrain costs, route distances, or mission safety. |
-| Claude terrain research assistant | Optional; end-to-end verification pending | Designed to interpret measured raster statistics, bounded terrain windows, and optional elevation profiles. Requires an approved registered raster and backend provider configuration. |
+MARSIGHT connects planetary science data with modern web technologies to create an interactive Mars terrain exploration experience.
 
-**Important distinction:** discovering a dataset through STAC does not mean its raster has been downloaded, registered, or processed. Live processing is available only when the corresponding approved raster is configured and passes server-side validation.
+The platform combines:
 
-## 2. Scientific data sources
+- Interactive planetary visualization.
+- Mars DTM dataset discovery.
+- Geospatial raster processing.
+- Scientific terrain analysis.
+- Elevation statistics and profile generation.
+- Optional AI-assisted interpretation of measured terrain data.
 
-MARSIGHT uses planetary data products from the following sources:
+The underlying objective is to bridge the gap between complex planetary datasets and accessible scientific exploration.
 
-- **USGS Astrogeology Science Center:** Mars DTM catalogue discovery and raster products.
-- **HiRISE:** High-resolution stereo-derived Mars terrain products from the Mars Reconnaissance Orbiter.
-- **CTX:** Context Camera-derived terrain products from the Mars Reconnaissance Orbiter.
-- **Mars Trek:** Viking VIS Global Color Mosaic used for the experimental Mars overview globe.
-- **Planetary Data System (PDS):** Product documentation and scientific metadata used to establish product identity and processing references.
+## Core Capabilities
 
-The application currently queries these STAC collections:
-
-- `mro_hirise_socet_dtms`
-- `mro_ctx_controlled_usgs_dtms`
-
-Dataset discovery returns catalogue metadata and asset references. It does not automatically make every discovered raster available to the processing API.
-
-## 3. Registered HiRISE reference product
-
-The existing server-side raster registry supports:
-
-**Product ID:** `DTEPD_076532_0920_076203_0920_A01`
-
-| Attribute | Value |
+| Feature | Description |
 |---|---|
-| Mission | Mars Reconnaissance Orbiter |
-| Instrument | High Resolution Imaging Science Experiment (HiRISE) |
-| Producer | University of Arizona |
-| Target | Mars |
-| Region | South Polar residual cap |
-| Map scale | 2 m/pixel |
-| Projection | Mars polar stereographic |
-| Elevation reference | Mars 2000 Datum |
-| Elevation units | Metres |
-| NoData | Approximately `-3.4028226550889045e+38` (Float32) |
+| Planetary Visualization | Interactive 3D exploration using CesiumJS |
+| Dataset Discovery | Mars terrain metadata discovery through USGS Astrogeology STAC |
+| Raster Processing | GeoTIFF reading and processing using Rasterio and GDAL |
+| Elevation Analysis | Minimum, maximum, mean, and standard deviation calculations |
+| Terrain Analysis | Supported slope, aspect, and hillshade calculations |
+| Elevation Profiles | Sampling elevation values along a selected profile |
+| AI Research Assistant | Optional Claude-powered interpretation of measured terrain summaries |
+| Scientific Validation | Raster metadata checks, NoData handling, and dataset provenance |
 
-The product's PDS documentation is used as the reference for its map scale, elevation units, and vertical reference.
+## Architecture
 
-The raster itself is not bundled in this repository. Its location is configured using the backend-only environment variable:
+MARSIGHT follows a decoupled client-server architecture. The frontend handles visualization and user interaction, while the backend manages dataset discovery, raster validation, scientific processing, and optional AI integration.
 
-`MARSIGHT_DTM_PATH`
+```mermaid
+flowchart TD
+    USER["User"] --> FRONTEND
 
-The registry validates the configured raster against the expected dimensions, band count, data type, NoData value, pixel scale, and projected Mars polar CRS.
+    subgraph CLIENT["Frontend"]
+        FRONTEND["React + TypeScript + Vite"]
+        GLOBE["CesiumJS Visualization"]
+        FRONTEND --> GLOBE
+    end
 
-Only explicitly registered products are accepted by the scientific processing endpoints.
+    FRONTEND <-->|"REST API / HTTPS"| API
 
-### CTX raster validation progress
+    subgraph SERVER["Backend"]
+        API["FastAPI"]
+        VALIDATION["Pydantic Validation"]
+        REGISTRY["Dataset Registry"]
+        PROCESSING["Raster Processing"]
+        ANALYSIS["Terrain Analysis"]
+        API --> VALIDATION
+        VALIDATION --> REGISTRY
+        REGISTRY --> PROCESSING
+        PROCESSING --> ANALYSIS
+    end
 
-A separate CTX product was successfully accessed and inspected locally:
+    subgraph DATA["Planetary Data"]
+        STAC["USGS Astrogeology STAC"]
+        HIRISE["HiRISE DTM"]
+        CTX["CTX DTM"]
+        RASTER["GeoTIFF"]
+        STAC --> HIRISE
+        STAC --> CTX
+        HIRISE --> RASTER
+        CTX --> RASTER
+    end
 
-`T01_000893_1847_XN_04N191W__N09_065929_1853_XN_05N191W`
+    STAC <-->|"Dataset discovery"| API
+    REGISTRY --> RASTER
 
-The tested geoid-adjusted GeoTIFF returned:
-
-- Dimensions: 1203 × 1568 pixels
-- Bands: 1
-- Data type: Float32
-- Pixel spacing: 20 × 20 projected CRS units
-- CRS: Mars 2015 Ocentric Equirectangular
-- NoData: -32767
-- Valid pixels in the inspected 128 × 128 sample: 16,383
-- Sample minimum: approximately -2946.62
-- Sample maximum: approximately -2922.71
-- Sample mean: approximately -2934.73
-
-These values are from a local raster sample, not full-product statistics. The GeoTIFF reports no explicit elevation band units, so the sample values are not labelled as verified metres.
-
-**CTX integration is pending:** the tested product has not yet been added to `dataset_registry.py` or made available through the production terrain-processing endpoints.
-
-## 4. Scientific processing methodology
-
-The scientific processing module is implemented independently of the FastAPI request handlers.
-
-### Full-raster statistics
-
-- Processes raster data in bounded row windows.
-- Excludes NoData and non-finite values.
-- Calculates valid and invalid pixel counts.
-- Calculates minimum, maximum, mean, and population standard deviation.
-- Uses mergeable population moments with Float64 calculations.
-
-### Terrain windows
-
-- Reads bounded raster windows.
-- Supports windows up to 512 × 512 cells.
-- Calculates elevation values.
-- Uses Horn's 3 × 3 finite-difference method for slope and aspect.
-- Calculates analytical hillshade using configurable illumination angles.
-- Returns null derivative values at raster edges and incomplete NoData neighborhoods.
-- Returns null aspect values for flat cells.
-
-### Elevation profiles
-
-- Samples nearest raster pixels along a straight segment.
-- Returns pixel coordinates, elevations, and sampled distances.
-- Uses the raster affine transformation for coordinate calculations.
-- Reports distances in raster CRS units rather than assuming an unverified conversion to metres.
-
-### Scientific limitations
-
-MARSIGHT is a terrain exploration and research platform, not a validated mission navigation system.
-
-- Raster statistics describe the selected product, not the entire Martian surface.
-- Different instruments and DTM products have different spatial resolutions and coordinate systems.
-- Projection distortion is not corrected in the current derivative calculation.
-- Elevation units and vertical references must be established for each registered product.
-- Hillshade is an analytical visualization, not a calibrated photometric observation.
-- No terrain-aware route optimization, hazard classification, or mission safety assessment is implemented.
-- The experimental globe imagery is not a substitute for raster-backed terrain visualization.
-
-API responses include raster metadata, algorithm descriptions, processing timestamps, provenance, NoData treatment, and applicable limitations.
-
-## 5. Architecture and technology stack
-
-### Frontend
-
-- React
-- TypeScript
-- Vite
-- CesiumJS
-- JavaScript / CSS
-
-### Backend
-
-- Python
-- FastAPI
-- Rasterio
-- GDAL
-- NumPy
-- Pydantic
-
-### Data and scientific infrastructure
-
-- USGS Astrogeology STAC
-- HiRISE and CTX Mars DTM products
-- Planetary coordinate reference systems
-- GeoTIFF raster processing
-
-### Optional AI integration
-
-- Anthropic Python SDK
-- Claude terrain research assistant
-- Server-side measured-data interpretation
-
-### Deployment
-
-- Render Web Service for the FastAPI backend
-- Render Static Site for the frontend
-- Environment-based configuration for API URLs, raster locations, and optional provider credentials
-
-The frontend and backend are deployed separately.
-
-See:
-- [Frontend architecture](docs/frontend-architecture.md)
-- [Map stack decision](docs/map-stack.md)
-- [Architecture notes](docs/architecture.md)
-- [Deployment guide](docs/deployment.md)
-
-## 6. Repository structure
-
-```text
-MARSIGHT-Platform/
-│
-├── frontend/
-│   └── src/
-│       └── React application and visualization
-│
-├── backend/
-│   ├── app/
-│   │   ├── main.py
-│   │   └── assistant.py
-│   │
-│   ├── science_api/
-│   │   ├── dataset_registry.py
-│   │   ├── terrain_processing.py
-│   │   └── terrain_routes.py
-│   │
-│   ├── tests/
-│   ├── requirements.txt
-│   └── requirements-ai.txt
-│
-├── docs/
-│   ├── architecture.md
-│   ├── frontend-architecture.md
-│   ├── map-stack.md
-│   └── deployment.md
-│
-├── LICENSE
-└── README.md
+    ANALYSIS -.-> AI["Optional Claude Assistant"]
 ```
 
-## 7. Installation and local development
+## Technology Stack
+
+| Category | Technologies |
+|---|---|
+| Frontend | React, TypeScript, Vite, JavaScript, CSS |
+| 3D Visualization | CesiumJS |
+| Backend | Python, FastAPI |
+| Geospatial Processing | Rasterio, GDAL |
+| Scientific Computing | NumPy |
+| Data Validation | Pydantic |
+| Dataset Discovery | USGS Astrogeology STAC |
+| Planetary Data | HiRISE, CTX Digital Terrain Models |
+| Data Format | GeoTIFF |
+| AI Integration | Anthropic Python SDK, Claude |
+| Deployment | Render Static Site, Render Web Service |
+
+## Scientific Data Sources
+
+MARSIGHT works with planetary terrain data infrastructure and Mars Digital Terrain Model collections.
+
+| Source | Purpose |
+|---|---|
+| USGS Astrogeology STAC | Discovery of planetary datasets and metadata |
+| HiRISE | High-resolution Mars terrain products |
+| CTX | Additional Mars terrain products |
+| GeoTIFF | Geospatial raster data format |
+| Planetary Coordinate Reference Systems | Spatial referencing of Mars datasets |
+
+### Dataset Integration Status
+
+| Capability | Status |
+|---|---|
+| HiRISE collection discovery | Implemented |
+| CTX collection discovery | Implemented |
+| Approved HiRISE product registry | Implemented |
+| HiRISE raster processing | Supported when the approved raster is configured |
+| Local CTX GeoTIFF validation | Successfully tested on one dataset |
+| CTX backend registration | Pending |
+
+Dataset discovery does not automatically imply raster availability or processing support. Scientific processing is restricted to explicitly registered and validated products.
+
+## Scientific Processing
+
+The backend provides raster-based analysis for supported datasets.
+
+### Elevation Statistics
+
+For valid elevation measurements, the processing engine calculates:
+
+| Measurement | Description |
+|---|---|
+| Minimum | Lowest valid elevation |
+| Maximum | Highest valid elevation |
+| Mean | Average valid elevation |
+| Standard Deviation | Distribution of elevation values |
+| Valid Pixels | Number of valid raster cells |
+| NoData Pixels | Number of excluded raster cells |
+
+### Terrain Derivatives
+
+Where horizontal and vertical measurement units are compatible, the processing engine supports:
+
+- Slope estimation using a Horn-style neighbourhood method.
+- Aspect calculation.
+- Hillshade generation.
+- Elevation profile sampling.
+
+### Processing Principles
+
+- Validate raster metadata before analysis.
+- Exclude NoData values from valid measurements.
+- Process bounded raster windows.
+- Preserve dataset provenance.
+- Distinguish measured values from generated interpretations.
+
+## AI-Assisted Terrain Interpretation
+
+MARSIGHT includes an optional Claude-powered research assistant.
+
+The AI integration is designed to interpret structured terrain measurements generated by the scientific backend.
+
+| Component | Responsibility |
+|---|---|
+| Anthropic Python SDK | Provider integration |
+| Claude | Contextual interpretation |
+| FastAPI | Server-side request handling |
+| Terrain Processing Engine | Source of measured terrain information |
+
+AI-generated explanations are supplementary. They do not replace scientific calculations or independently verified measurements.
+
+The AI integration is optional and does not replace the core processing pipeline.
+
+## API Reference
+
+The FastAPI backend exposes endpoints for health checks, dataset discovery, terrain analysis, and optional AI interpretation.
+
+| Method | Endpoint | Description |
+|---|---|---|
+| GET | `/health` | Service health and configuration |
+| GET | `/datasets` | Planetary dataset discovery |
+| GET | `/api/v1/dtm/{item_id}/statistics` | Elevation statistics |
+| GET | `/api/v1/dtm/{item_id}/window` | Terrain-window analysis |
+| GET | `/api/v1/dtm/{item_id}/profile` | Elevation profile |
+| POST | `/api/assistant/terrain-summary` | AI-assisted terrain interpretation |
+
+Interactive API documentation is available through FastAPI's Swagger interface at `/docs`.
+
+## Getting Started
 
 ### Prerequisites
 
+- Git
 - Node.js and npm
-- Python 3.12 recommended
-- A Python environment with compatible Rasterio/GDAL dependencies
+- Python 3.11 or a compatible version for the backend dependencies
+- Required geospatial dependencies
 
-### Frontend
+### Clone the Repository
 
-From the repository root:
+```bash
+git clone https://github.com/lokeshLmp/MARSIGHT-Platform.git
+
+cd MARSIGHT-Platform
+```
+
+### Frontend Setup
 
 ```bash
 cd frontend
-npm ci
-npm test
-npm run build
+
+npm install
+
 npm run dev
 ```
 
-The development server starts the Vite frontend.
-
-If the backend is hosted at a different address, configure the API origin before starting Vite.
-
-PowerShell:
-
-```powershell
-$env:VITE_MARSIGHT_API_URL = "http://localhost:8000"
-npm run dev
-```
-
-### Backend
+### Backend Setup
 
 From the repository root:
 
 ```powershell
 python -m venv .venv
 
-.venv\Scripts\python.exe -m pip install -r backend\requirements.txt
+.\.venv\Scripts\Activate.ps1
 
-.venv\Scripts\python.exe -m uvicorn backend.app.main:app --reload --port 8000
+pip install -r backend/requirements.txt
+
+uvicorn backend.main:app --reload
 ```
 
-The API documentation is available at:
-
-`http://localhost:8000/docs`
-
-### Configure the registered HiRISE raster
-
-Set the path to an approved local raster file:
-
-```powershell
-$env:MARSIGHT_DTM_PATH = "D:\data\DTEPD_076532_0920_076203_0920_A01.IMG"
-```
-
-The path must point to a file accessible from the backend process. An S3 or HTTPS URL cannot be substituted directly for this local-file configuration.
-
-The raster is not included in the repository.
-
-### Backend tests
-
-From the repository root:
-
-```powershell
-.venv\Scripts\python.exe -m unittest discover -s backend/tests -v
-```
-
-### Optional Claude dependency
-
-Install the additional dependency only when enabling the optional AI assistant:
-
-```powershell
-.venv\Scripts\python.exe -m pip install -r backend\requirements-ai.txt
-```
-
-The core API does not require the Anthropic SDK or an API key.
-
-## 8. Optional Claude terrain research assistant
-
-MARSIGHT includes an optional endpoint for AI-assisted interpretation of measured terrain information.
-
-**Endpoint:**
-
-`POST /api/assistant/terrain-summary`
-
-The backend prepares a compact evidence package containing:
-
-- Registered product metadata
-- Full-product raster statistics
-- A bounded elevation and terrain-derivative window
-- An optional elevation profile
-- Data provenance and scientific limitations
-
-Claude receives these measured results and generates an interpretation separately from the numerical measurements.
-
-### Configuration
-
-The following variables belong exclusively to the backend service:
+The backend development server runs at:
 
 ```text
-ANTHROPIC_API_KEY=<backend secret>
-ANTHROPIC_MODEL=claude-haiku-5-5
-MARSIGHT_CLAUDE_ENABLED=true
+http://127.0.0.1:8000
 ```
 
-Never expose `ANTHROPIC_API_KEY` through Vite, frontend environment variables, or browser code.
-
-The feature requires both explicit enablement and a valid backend API key. It also requires an approved registered raster for the requested product.
-
-### Usage limitations
-
-- Provider requests are rate-limited to three per client per minute.
-- The configured response limit is 600 output tokens.
-- Only compact measured summaries are sent to the provider.
-- Claude interpretations are not replacements for scientific validation.
-- No route safety or mission survival assessment is produced.
-- A project spending limit must be configured in the Anthropic Console; the application does not independently enforce the monthly spending cap.
-
-The application keeps measured values and AI-generated interpretations in separate response fields.
-
-## 9. API endpoints
-
-### Health and discovery
-
-| Endpoint | Method | Purpose |
-|---|---|---|
-| `/health` | GET | Backend health and optional AI configuration status |
-| `/datasets` | GET | Search supported USGS STAC DTM collections |
-| `/dtm/{item_id}/metadata` | GET | Retrieve DTM asset metadata |
-
-Dataset discovery requires a bounding box:
+API documentation:
 
 ```text
-GET /datasets?collection=all&limit=2&bbox=-180,-90,180,90
+http://127.0.0.1:8000/docs
 ```
 
-Supported collection values:
+**Configuration:** Scientific raster processing requires a correctly configured approved dataset. Optional Claude functionality requires the Anthropic SDK, backend-side credentials, and the appropriate environment configuration.
 
-- `all`
-- `hirise_dtm`
-- `ctx_dtm`
+## Deployment
 
-### Scientific processing
+MARSIGHT uses independent frontend and backend deployments.
 
-| Endpoint | Method | Purpose |
+| Service | Platform | Responsibility |
 |---|---|---|
-| `/api/v1/dtm/{item_id}/statistics` | GET | Full-product NoData-aware statistics |
-| `/api/v1/dtm/{item_id}/window` | GET | Bounded elevation, slope, aspect, and hillshade |
-| `/api/v1/dtm/{item_id}/profile` | GET | Nearest-pixel elevation profile |
+| Frontend | Render Static Site | React production application |
+| Backend | Render Web Service | FastAPI and scientific processing |
 
-### Optional AI
+The two services communicate through HTTPS-based REST API requests.
 
-| Endpoint | Method | Purpose |
-|---|---|---|
-| `/api/assistant/terrain-summary` | POST | AI interpretation of measured raster analysis |
+Environment variables are used for API configuration, CORS settings, raster locations, and optional AI credentials.
 
-The processing endpoints accept only products explicitly registered and validated by the backend. STAC discovery alone does not authorize raster processing.
+**Security:** API keys and private credentials must remain in backend environment configuration and must never be committed to Git.
 
-## 10. Deployment
+## Testing
 
-MARSIGHT uses two independent Render services:
+Previously recorded development test results:
 
-**Frontend Static Site**
+| Test Suite | Result |
+|---|---|
+| Backend | 48 passed, 1 skipped |
+| Frontend | 7 passed |
+| Production frontend build | Passed |
 
-- Repository: `lokeshLmp/MARSIGHT-Platform`
-- Service: `marsight-platform-web`
-- URL: https://marsight-platform-web.onrender.com
+The skipped backend test requires an actual raster dataset. These results represent recorded development tests, not complete end-to-end verification of every live dataset or optional service.
 
-**Backend Web Service**
+## Project Status
 
-- Repository: `lokeshLmp/MARSIGHT-Platform`
-- Service: `marsight-platform-api`
-- URL: https://marsight-platform-api.onrender.com
+MARSIGHT is under active development.
 
-The frontend uses `VITE_MARSIGHT_API_URL` to communicate with the backend.
+- [x] React and TypeScript frontend
+- [x] CesiumJS visualization layer
+- [x] FastAPI backend
+- [x] USGS planetary dataset discovery
+- [x] HiRISE approved-product processing infrastructure
+- [x] Raster statistics and terrain analysis
+- [x] Elevation profile functionality
+- [x] Optional Claude assistant endpoint
+- [x] Frontend and backend deployment
+- [ ] CTX backend registration and processing
+- [ ] Complete live end-to-end AI verification
 
-The backend stores sensitive configuration and any approved raster path server-side. A raster must actually exist within the backend service's accessible filesystem before processing endpoints can use it.
+## Scientific Limitations
 
-For complete deployment instructions and smoke tests, see [docs/deployment.md](docs/deployment.md).
+MARSIGHT is an exploratory scientific platform. Its results depend on source-data quality, raster coverage, coordinate systems, measurement units, and processing assumptions.
 
-## 11. Security and configuration
+- Discovered metadata does not guarantee raster accessibility.
+- Only registered and validated raster products are accepted for current scientific processing.
+- CTX processing is not yet integrated into the backend.
+- Terrain derivatives require compatible horizontal and vertical units.
+- Elevation-profile distances depend on the raster coordinate reference system.
+- AI interpretations are not independent scientific measurements.
+- The platform does not establish rover traversability, landing-site safety, or mission survival predictions.
 
-- API keys are stored as backend secrets.
-- Raster filesystem paths are not exposed to frontend clients.
-- Only explicitly registered datasets are accepted for scientific processing.
-- API request models validate input and reject unexpected fields.
-- Terrain window dimensions and assistant output are bounded.
-- Optional AI functionality is separated from core scientific API functionality.
+Scientific traceability and responsible interpretation are fundamental to the project.
 
-Do not commit `.env` files, provider secrets, private raster files, or locally generated virtual environments.
+## Future Development
 
-## 12. License
+- Expand supported Mars DTM products.
+- Complete CTX raster integration.
+- Improve planetary coordinate transformation support.
+- Extend terrain comparison and visualization capabilities.
+- Improve scientific provenance and reproducibility.
+- Complete live verification of AI-assisted terrain interpretation.
 
-This project is released under the **MIT License**.
+## References
 
-See [LICENSE](LICENSE) for the complete license text.
-
-The original research backend's MIT license has been checked and included.
+- [USGS Astrogeology](https://astrogeology.usgs.gov/)
+- [HiRISE](https://www.uahirise.org/)
+- [CesiumJS](https://cesium.com/platform/cesiumjs/)
+- [React](https://react.dev/)
+- [TypeScript](https://www.typescriptlang.org/)
+- [FastAPI](https://fastapi.tiangolo.com/)
+- [Rasterio](https://rasterio.readthedocs.io/)
+- [GDAL](https://gdal.org/)
+- [NumPy](https://numpy.org/)
+- [Anthropic Documentation](https://docs.anthropic.com/)
 
 ---
 
-**MARSIGHT — Exploring the Martian surface through planetary data, scientific computation, and interactive visualization.**
+<p align="center">
+  <strong>MARSIGHT</strong>
+  <br>
+  Advancing planetary exploration through data, science, and technology.
+</p>
